@@ -4,6 +4,8 @@ import re
 import os
 import sys
 import time
+import getopt
+import requests
 
 from urllib.parse import urlencode
 from bs4 import BeautifulSoup
@@ -207,12 +209,30 @@ def merge(merge_list, ffmpeg=None):
 
 
 if __name__ == "__main__":
-    root = CONFIG["root"]
+    # root = CONFIG["root"]
     num_thread = CONFIG["num_thread"]
-    url = sys.argv[1]
+    # url = sys.argv[1]
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "d:u:p:i:",["directory=","username=","password=","url"])
+        if len(opts)<4:
+            print('Usage: python3 mooc-dl.py -d <save directory> -u <username> -p <password> -i <url>')
+            sys.exit(2)
+    except getopt.GetoptError:
+        print('Usage: python3 mooc-dl.py -d <save directory> -u <username> -p <password> -i <url>')
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt in ("-d", "--directory"):
+            root = arg
+        elif opt in ("-u" "--username"):
+            username = arg
+        elif opt in ("-p", "--password"):
+            password = arg
+        elif opt in ("-i", "--url"):
+            url = arg
 
     # 登录并获取信息
-    token = login(CONFIG["username"], CONFIG["password"])
+    #token = login(CONFIG["username"], CONFIG["password"])
+    token = login(username, password)
     term_id, course_name = get_summary(url)
     course_id = re.match(r"https?://www.icourse163.org/(course|learn)/\w+-(\d+)", url).group(2)
     print(course_name)
@@ -221,6 +241,9 @@ if __name__ == "__main__":
     # 创建必要环境
     base_dir = touch_dir(os.path.join(root, course_name))
     playlist = Dpl(os.path.join(base_dir, "Playlist.dpl"))
+
+    # 更新数据库中保存目录
+    r = requests.post("http://localhost:3000/thieves/update_directory", data={'url': url, 'dir': base_dir})
 
     # 获取资源列表
     resource_list = get_resource(term_id, token, file_types=CONFIG["file_types"])
